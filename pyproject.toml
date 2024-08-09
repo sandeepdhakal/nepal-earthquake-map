@@ -1,0 +1,25 @@
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+ignore = ["PD008", "PD901", "ANN101", "ANN102"]
+select = ["E", "F", "F", "I", "D", "ANN", "B", "A", "COM", "C4", "PIE", "RET", "SIM", "FIX", "PD", "PLR", "W"]
+task-tags = ["TODO", "FIXME", "HACK"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pep8-naming]
+ignore-names = ["df"]
+
+[tool.ruff.lint.per-file-ignores]
+"*.ju.py" = ["B018", "D100", "D205", "D212", "D400", "D415", "E402"]
+
+[tool.jupytext]
+formats = "ipynb,.ju.py:percent"
+notebook_extensions = "ipynb,.ju.py"
+cell_markers = '"""'
