@@ -22,18 +22,26 @@ import holoviews as hv
 import pandas as pd
 import panel as pn
 
+from bokeh.models import HoverTool
 from bokeh.models.widgets.tables import NumberFormatter
 
 # %%
-gv.extension("bokeh")
+# gv.extension("bokeh")
 hv.extension("bokeh")
 pn.extension("tabulator")
+pn.extension(design="material")
 
 # %%
 nepal = gpd.read_parquet("data/nepal.parq")
 quakes = gpd.read_parquet("data/quakes.parq")
 
 # %%
+slider_stylesheet = """
+:host {
+    top: -75px !important;
+}
+"""
+
 last_date = quakes.index.max().date()
 earliest_date = quakes.index.min().date()
 date_slider = pn.widgets.DateRangeSlider(
@@ -41,30 +49,31 @@ date_slider = pn.widgets.DateRangeSlider(
     start=earliest_date,
     end=last_date,
     value=(earliest_date, last_date),
-    width=800,
+    sizing_mode='stretch_width',
+    stylesheets=[slider_stylesheet],
 )
 
-hover_tooltips = [
-    ("Date", "@{time}{%F}"),
-    ("Magnitude: ", "@mag"),
-    ("Depth: ", "@depth kms"),
-]
+info = pn.pane.Alert(f"**{len(quakes)}** earthquakes recorded between {earliest_date:%F} and {last_date:%F}")
 
 mag_range = (quakes["mag"].min(), quakes["mag"].max())
-
 
 def plot_quakes(date_range):
     dates = [pd.Timestamp(x, tz="UTC") for x in date_range]
     data = quakes.loc[dates[0] : dates[1]]
     quake_table.value = data[["mag", "depth", "latitude", "longitude"]]
+
+    hover_tool = HoverTool(tooltips=[
+        ("Date", "@time{%d %b %Y %I:%M %p}"),
+        ("Magnitude: ", "@mag{0.0}"),
+        ("Depth: ", "@depth{0.00} kms"),
+    ],
+  formatters={'@time': 'datetime'})
     return (
         gv.Points(
             data,
             kdims=["longitude", "latitude"],
             vdims=["mag", "depth", "time"],
-        )
-        .opts(hover_tooltips=hover_tooltips)
-        .redim.range(mag=mag_range)
+        ).opts(tools=[hover_tool])
     )
 
 
@@ -74,6 +83,7 @@ points = hv.DynamicMap(quake_points)
 quake_table = pn.widgets.Tabulator(
     quakes[["mag", "depth", "latitude", "longitude"]],
     show_index=True,
+    page_size=10,
     selectable=False,
     sortable={
         "mag": True,
@@ -82,7 +92,7 @@ quake_table = pn.widgets.Tabulator(
         "latitude": False,
     },
     formatters={
-        "mag": NumberFormatter(format="0.00"),
+        "mag": NumberFormatter(format="0.0"),
         "depth": NumberFormatter(format="0.00"),
         "longitude": NumberFormatter(format="0.00"),
         "latitude": NumberFormatter(format="0.00"),
@@ -98,12 +108,11 @@ quake_table = pn.widgets.Tabulator(
 
 map = gv.Polygons(nepal, vdims=[])
 
-point_layout = pn.Column(
+plot =  (
     gvts.CartoLight
     * map.opts(
         alpha=0.1,
-        width=800,
-        height=500,
+        responsive=True,
         xaxis=None,
         yaxis=None,
         active_tools=["pan", "wheel_zoom"],
@@ -112,17 +121,18 @@ point_layout = pn.Column(
     * points.opts(
         size=(2 ** gv.dim("mag")) / 4,
         cmap="OrRd",
-        tools=["hover"],
         toolbar="above",
-        hover_tooltips=hover_tooltips,
         color="mag",
         colorbar=True,
-    ),
-    date_slider,
+    ).redim.range(mag=mag_range)
+)
+
+plot_pane = pn.Column(
+    plot,
+    pn.Row(pn.Spacer(width=50), date_slider, info, pn.Spacer(width=50)),
+    sizing_mode='stretch_both'
 )
 
 table_layout = pn.Column(quake_table)
-app = pn.FlexBox(point_layout, table_layout, sizing_mode="stretch_both")
-
-# %%
-app.servable()
+app = pn.FlexBox(plot_pane, table_layout, sizing_mode="stretch_both")
+pn.template.MaterialTemplate(site="", title="Earthquakes in Nepal", main=[app]).servable()#, raw_css=[CSS]).servable()
