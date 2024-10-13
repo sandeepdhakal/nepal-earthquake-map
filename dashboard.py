@@ -6,7 +6,7 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.1
+#       jupytext_version: 1.16.4
 #   kernelspec:
 #     display_name: NepQuakes
 #     language: python
@@ -32,6 +32,9 @@ pn.extension("tabulator")
 pn.extension(design="material")
 
 # %%
+# nepal = gpd.read_parquet('s3://nepal-in-data/quakes/nepal.parq')
+# quakes = gpd.read_parquet('s3://nepal-in-data/quakes/quakes.parq')
+
 nepal = gpd.read_parquet("data/nepal.parq")
 quakes = gpd.read_parquet("data/quakes.parq")
 
@@ -39,6 +42,8 @@ quakes = gpd.read_parquet("data/quakes.parq")
 slider_stylesheet = """
 :host {
     top: -75px !important;
+    width: 300px;
+    left: 20px;
 }
 """
 
@@ -57,6 +62,8 @@ info = pn.pane.Alert(f"**{len(quakes)}** earthquakes recorded between {earliest_
 
 mag_range = (quakes["mag"].min(), quakes["mag"].max())
 
+
+# %%
 def plot_quakes(date_range):
     dates = [pd.Timestamp(x, tz="UTC") for x in date_range]
     data = quakes.loc[dates[0] : dates[1]]
@@ -76,9 +83,18 @@ def plot_quakes(date_range):
         ).opts(tools=[hover_tool])
     )
 
-
 quake_points = pn.bind(plot_quakes, date_range=date_slider)
 points = hv.DynamicMap(quake_points)
+
+# %%
+table_stylesheet = """
+:host {
+    flex: 1 0 30%;
+}
+.tabulator-cell {
+    font-size: 14px;
+}
+"""
 
 quake_table = pn.widgets.Tabulator(
     quakes[["mag", "depth", "latitude", "longitude"]],
@@ -99,24 +115,29 @@ quake_table = pn.widgets.Tabulator(
     },
     editors={"mag": None, "depth": None, "longitude": None, "latitude": None},
     titles={
-        "mag": "Magnitude",
+        "time": "Date/Time",
+        "mag": "Mag.",
         "depth": "Depth (km)",
-        "longitude": "Longitude",
-        "latitude": "Latitude",
+        "longitude": "Long",
+        "latitude": "Lat",
     },
+    theme="bulma",
+    layout='fit_data',
+    stylesheets=[table_stylesheet],
 )
 
+# %%
 map = gv.Polygons(nepal, vdims=[])
 
 plot =  (
-    gvts.CartoLight
-    * map.opts(
+    map.opts(
         alpha=0.1,
-        responsive=True,
         xaxis=None,
         yaxis=None,
         active_tools=["pan", "wheel_zoom"],
         default_tools=["pan", "wheel_zoom", "hover"],
+        data_aspect=1,
+        responsive='width',
     )
     * points.opts(
         size=(2 ** gv.dim("mag")) / 4,
@@ -124,15 +145,34 @@ plot =  (
         toolbar="above",
         color="mag",
         colorbar=True,
+        data_aspect=1,
+        responsive='width',
     ).redim.range(mag=mag_range)
 )
+map_css = """
+:host {
+    flex: 2 1 65%;
+}
+"""
+plot_layout = pn.layout.Column(plot, date_slider, stylesheets=[map_css])
 
-plot_pane = pn.Column(
-    plot,
-    pn.Row(pn.Spacer(width=50), date_slider, info, pn.Spacer(width=50)),
-    sizing_mode='stretch_both'
+# %%
+flex_css = """
+@media screen and (max-width: 1200px) {
+  div[id^="flexbox"] {
+    flex-flow: column !important;
+  }
+}
+"""
+layout = pn.layout.FlexBox(plot_layout, quake_table, stylesheets=[flex_css])
+
+# %%
+template = pn.template.MaterialTemplate(
+    site="",
+    title="Earthquakes in Nepal",
+    sidebar=[],
+    main=[layout]
 )
+template.servable()
 
-table_layout = pn.Column(quake_table)
-app = pn.FlexBox(plot_pane, table_layout, sizing_mode="stretch_both")
-pn.template.MaterialTemplate(site="", title="Earthquakes in Nepal", main=[app]).servable()#, raw_css=[CSS]).servable()
+# %%
