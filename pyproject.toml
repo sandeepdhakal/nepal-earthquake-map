@@ -6,7 +6,7 @@ line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
-ignore = ["PD008", "PD901", "ANN101", "ANN102"]
+ignore = ["PD008", "PD901", "ANN101", "ANN102", "COM812"]
 select = ["E", "F", "F", "I", "D", "ANN", "B", "A", "COM", "C4", "PIE", "RET", "SIM", "FIX", "PD", "PLR", "W"]
 task-tags = ["TODO", "FIXME", "HACK"]
 
