@@ -1,3 +1,18 @@
+[project]
+name = "nepal-earthquake-map"
+version = "1.0"
+description = "Interactive dashboard to explore earthquakes in Nepal."
+readme = "README.md"
+dependencies = [
+    "colorcet>=3.1.0",
+    "geopandas>=1.0.1",
+    "geoviews>=1.14.0",
+    "holoviews>=1.20.1",
+    "panel>=1.6.1",
+    "pyarrow>=19.0.1",
+    "watchfiles>=1.0.4",
+]
+
 [tool.isort]
 profile = "black"
 
